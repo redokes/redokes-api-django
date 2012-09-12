@@ -2,3 +2,9 @@
 *.pot
 *.pyc
 local_settings.py
+
+.project
+
+.pydevproject
+
+project/.DS_Store
