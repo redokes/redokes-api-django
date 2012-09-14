@@ -52,7 +52,7 @@ class Lookup(object):
                 self.page = 1
             self.start = (self.page - 1) * self.limit
             del self.params['page']
-            
+        
         #Get the sort
         if "sort" in self.params:
             if type(self.params["sort"]) is list:
@@ -217,6 +217,8 @@ class Lookup(object):
             return self.records.number
         elif not self.page and not self.start:
             return 1
+        elif self.page:
+            return self.page
         else:
             return None
     
