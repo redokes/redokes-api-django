@@ -3,10 +3,10 @@ from django.db.models import Q
 from redokes.database import Paging
 import redokes.util
 
-class Lookup():
+class Lookup(object):
     util = redokes.util
-    def __init__(self, params={}, *args, **kwargs):
-        # Init properties
+    
+    def init_defaults(self):
         self.params = {}
         self.sort = []
         self.filters = []
@@ -21,6 +21,9 @@ class Lookup():
         self.search_fields = []
         self.records = []
         self.front_controller = None
+    
+    def __init__(self, params={}, *args, **kwargs):
+        self.init_defaults()
         
         #Set the params
         self.params = params

@@ -5,6 +5,7 @@ from django.conf import settings
 class Crud(Api):
     
     def init_defaults(self):
+        Api.init_defaults(self)
         self.model_class = False
         self.lookup_class = False
         self.form_class = False
@@ -58,7 +59,6 @@ class Crud(Api):
                     }
                 })
             
-        
         #call the parent
         return Api.init(self)
     
