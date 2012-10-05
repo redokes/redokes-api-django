@@ -149,19 +149,19 @@ class Lookup(object):
         else:
             self.records = self.query_set[start:stop]
         
-        
-#        self.num_records = len(self.rows)
-        
         return self.records
+    
+    def get_num_records(self):
+        return len(self.rows)
     
     def get_rows(self):
         self.rows = self.get_records().values(*self.fields)
-        #Run the rows through the formatter
+        self.format_rows()
+        return self.rows
+    
+    def format_rows(self):
         for row in self.rows:
             row = self.format_row(row)
-        
-        #Return the formatted rows
-        return self.rows
     
     def get_row(self):
         limit = self.start + 1
@@ -184,7 +184,7 @@ class Lookup(object):
         """
         return row
     
-    def get_total(self):
+    def get_total_records(self):
         return self.total_records
     
     def get_current_page(self):
@@ -202,7 +202,7 @@ class Lookup(object):
             return self.query_set.paginator.num_pages
         else:
             pass
-        return ceil(self.get_total() / float(self.limit))
+        return ceil(self.get_total_records() / float(self.limit))
     
     def add_sorter(self, property, direction):
         self.sort.append({
