@@ -12,17 +12,22 @@ class Lookup(object):
         self.sort = []
         self.filters = []
         self.exclude = []
+        
         self.start = 0
         self.limit = 10
         self.page = 0
+        
         self.model = None
+        
         self.num_records = 0
+        self.total_records = 0
+        
         self.fields = []
         self.related_tables = []
         self.search_fields = []
-        self.records = None
-        self.records_are_dirty = True
+        self.query_set = None
         self.rows = []
+        self.records = None
         self.front_controller = None
     
     def __init__(self, params={}, *args, **kwargs):
@@ -80,30 +85,23 @@ class Lookup(object):
         for key, value in self.params.iteritems():
             self.add_filter(key, value)
     
-    def set_records(self, records):
-        self.records = records
-        self.records_are_dirty = False
-    
-    def get_records(self, fields=None):
-        if self.records_are_dirty == True:
-            self.records = self.model.objects.order_by(
-                *self.get_order()
-            ).filter(
-                *self.process_filters()
-            ).exclude(
-                *self.exclude
-            ).select_related(
-                *self.related_tables
-            ).distinct()
-            
-            if fields is not None:
-                self.records = self.records.values(
-                    *fields
-                )
-            
-            self.records_are_dirty = False
+    def get_query_set(self, fields=None):
+        self.query_set = self.model.objects.order_by(
+            *self.get_order()
+        ).filter(
+            *self.process_filters()
+        ).exclude(
+            *self.exclude
+        ).select_related(
+            *self.related_tables
+        ).distinct()
         
-        return self.records
+        if fields is not None:
+            self.query_set = self.query_set.values(
+                *fields
+            )
+        
+        return self.query_set
     
     def get_order(self):
         #Compute the order, [property: direction]
@@ -138,33 +136,37 @@ class Lookup(object):
                 
         return filter_objects
     
-    def get_offset(self, start=0, limit=0):
+    def get_records(self, start=0, limit=0):
         start = start or self.start
         limit = limit or self.limit
         stop = start + limit
         
+        self.total_records = self.get_query_set().count()
+        
         # check if a certain page needs to be returned
         if self.page:
-            self.records = Paging.get_paged_set(self.get_records(), limit=self.limit, page=self.page)
+            self.records = Paging.get_paged_set(self.get_query_set(), limit=self.limit, page=self.page)
         else:
-            self.num_records = self.get_records().count()
-        return self.records[start:stop]
+            self.records = self.query_set[start:stop]
+        
+        
+#        self.num_records = len(self.rows)
+        
+        return self.records
     
     def get_rows(self):
-        self.get_records(self.fields)
-        self.rows = []
-        
+        self.rows = self.get_records().values(*self.fields)
         #Run the rows through the formatter
-        for row in list(self.get_offset()):
-            self.rows.append(self.format_row(row))
-            
+        for row in self.rows:
+            row = self.format_row(row)
+        
         #Return the formatted rows
         return self.rows
     
     def get_row(self):
         limit = self.start + 1
-        self.get_records(self.fields)
-        rows = list(self.get_offset(self.start, limit))
+        self.get_query_set(self.fields)
+        rows = list(self.get_records(self.start, limit))
         
         #Run the rows through the formatter
         formatted_rows = []
@@ -182,12 +184,12 @@ class Lookup(object):
         """
         return row
     
-    def get_count(self):
-        return self.get_records().count()
+    def get_total(self):
+        return self.total_records
     
     def get_current_page(self):
-        if hasattr(self.get_records(), 'paginator'):
-            return self.records.number
+        if hasattr(self.get_query_set(), 'paginator'):
+            return self.query_set.number
         elif not self.page and not self.start:
             return 1
         elif self.page:
@@ -196,32 +198,23 @@ class Lookup(object):
             return None
     
     def get_num_pages(self):
-        if hasattr(self.records, 'paginator'):
-            return self.records.paginator.num_pages
+        if hasattr(self.query_set, 'paginator'):
+            return self.query_set.paginator.num_pages
         else:
             pass
-        return ceil(self.get_count() / float(self.limit))
-    
-    def get_models(self):
-        return self.get_offset()
-    
-    def get_model(self):
-        limit = self.start + 1
-        return self.get_offset(self.start, limit)
+        return ceil(self.get_total() / float(self.limit))
     
     def add_sorter(self, property, direction):
         self.sort.append({
             'property': property,
             'direction': direction
         })
-        self.records_are_dirty = True
         
     def add_filter(self, property, value, *args, **kwargs):
         self.filters.append({
             'property': property,
             'value': value
         })
-        self.records_are_dirty = True
         
     def set_filter(self, property, value):
         found = False
@@ -232,7 +225,6 @@ class Lookup(object):
                 break
         if not found:
             self.add_filter(property, value)
-            self.records_are_dirty = True
             
     def get_method_name(self, name, prefix=''):
         method = prefix
