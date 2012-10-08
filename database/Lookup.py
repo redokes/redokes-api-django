@@ -28,6 +28,9 @@ class Lookup(object):
         self.query_set = None
         self.rows = []
         self.records = None
+        
+        self.mapped_lookups = {}
+        
         self.front_controller = None
     
     def __init__(self, params={}, *args, **kwargs):
@@ -149,18 +152,35 @@ class Lookup(object):
         else:
             self.records = self.query_set[start:stop]
         
+        # TODO: make sure this isn't adding multiple of the same record
+        for key, mapped_lookup in self.mapped_lookups.items():
+            mapped_lookup['instance'].add_filter(key, self.records)
+        
         return self.records
     
     def get_num_records(self):
         return len(self.rows)
     
     def get_rows(self):
+        # get mapped rows
+        for key, mapped_lookup in self.mapped_lookups.items():
+            mapped_lookup['instance'].get_rows()
+        
         self.rows = self.get_records().values(*self.fields)
         self.format_rows()
         return self.rows
     
     def format_rows(self):
         for row in self.rows:
+            # add mapped lookup data
+            for lookup_key, mapped_lookup in self.mapped_lookups.items():
+                row[lookup_key] = []
+                foreign_key = mapped_lookup['foreign_key']
+                for lookup_row in mapped_lookup['instance'].rows:
+                    if lookup_row[foreign_key] == row['id']:
+                        row[lookup_key].append(lookup_row)
+            
+            # format the row
             row = self.format_row(row)
     
     def get_row(self):
@@ -225,6 +245,12 @@ class Lookup(object):
                 break
         if not found:
             self.add_filter(property, value)
+            
+    def add_mapped_lookup(self, key, lookup_class, foreign_key):
+        self.mapped_lookups[key] = {
+            'instance': lookup_class(),
+            'foreign_key': foreign_key
+        }
             
     def get_method_name(self, name, prefix=''):
         method = prefix
