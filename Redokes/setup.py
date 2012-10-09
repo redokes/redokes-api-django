@@ -1,3 +1,5 @@
+from distutils.core import setup
+
 setup(
     name = "Redokes",
     version = "0.1",
