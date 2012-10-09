@@ -74,6 +74,14 @@ class Lookup(object):
                 except:
                     self.sort = []
             del self.params['sort']
+            
+        if "sort_property" in self.params:
+            if "sort_direction" in self.params:
+                self.add_sorter(self.params['sort_property'], self.params['sort_direction'])
+                del self.params['sort_direction']
+            else:
+                self.add_sorter(self.params['sort_property'], self.params['asc'])
+            del self.params['sort_property']
         
         #Get the filters
         if "filter" in self.params:
