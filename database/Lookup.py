@@ -152,6 +152,8 @@ class Lookup(object):
         limit = limit or self.limit
         stop = start + limit
         
+        # TODO: this should only be run once - maybe put it in the get_rows
+        # or modify the get_total_records method to cache the result
         self.total_records = self.get_query_set().count()
         
         # check if a certain page needs to be returned
