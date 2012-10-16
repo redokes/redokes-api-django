@@ -12,7 +12,6 @@ setup(
     ],
     url = "https://github.com/redokes/redokes-api-django",
     description = "Redokes Framework.",
-    long_description = open('README.md').read(),
     install_requires = [
         "django>=1.4",
         "python-memcached",
