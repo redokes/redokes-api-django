@@ -17,7 +17,7 @@ last_year = today - relativedelta(years=1)
 delta = next_year - today
 datetime.datetime.strptime("2012/10/24", "%Y/%m/%d")
 
-group_names = (
+all_group_names = (
     'year',
     'month',
     'day',
@@ -52,13 +52,14 @@ class Stats(object):
         
         self.date_field = None
         self.group_by = 'month'
-        self.start_date = None
-        self.end_date = last_year
+        self.start_date = last_year
+        self.end_date = today
         self.date_range = None
         
         self.group_names = []
         self.extra = {}
         self.select = {}
+        self.where = []
         self.values = []
         self.order_by = []
         self.aggregates = []
@@ -76,49 +77,25 @@ class Stats(object):
     def __init__(self, model=None, date_field=None, params={}, *args, **kwargs):
         self.init_defaults()
         
+        # Set the model
         self.model = model
         
-        #Set the params
-        self.params = params
+        # Set the date field
+        self.date_field = date_field
+        
+        # Set the params
+        self.params = params.copy()
+        
+        # Set the group by and build grouping data
+        self.set_group_by(self.group_by)
         
         #Apply the kwargs
         redokes.util.apply_config(self, kwargs)
         
-        # Check date field
-        self.date_field = date_field
-        
         # Check group by
         if 'group_by' in self.params:
-            group_by = self.params['group_by']
-            if group_by in self.group_names:
-                self.group_by = group_by
+            self.set_group_by(self.params['group_by'])
             del self.params['group_by']
-        
-        # Set group names
-        if self.group_by == 'week':
-            self.group_names = week_group_names
-        else:
-            self.group_names = default_group_names
-        
-        # Build grouping data
-        for group_name in self.group_names:
-            self.select[group_name] = 'extract({0} from {1})'.format(group_name, self.date_field)
-            self.values.append(group_name)
-            self.order_by.append('-{0}'.format(group_name))
-            if group_name == self.group_by:
-                break
-        
-        # Set the extra select data
-        self.extra = {
-            'select': self.select
-        }
-        
-        # Set the aggregates
-        self.aggregates = {
-            'num_records': Count('id'),
-            'average_priority': Avg('priority__level'),
-            'average_difficulty': Avg('difficulty__value'),
-        }
         
         # Check start date
         if 'start_date' in self.params:
@@ -141,24 +118,59 @@ class Stats(object):
         # Check date range
         if 'date_range' in self.params:
             date_range = self.params['date_range']
-            if date_range in group_names:
+            if date_range in all_group_names:
                 if date_range == 'year':
-                    self.end_date = self.start_date - relativedelta(years=1)
+                    self.start_date = self.end_date - relativedelta(years=1)
                 elif date_range == 'month':
-                    self.end_date = self.start_date - relativedelta(months=1)
+                    self.start_date = self.end_date - relativedelta(months=1)
                 elif date_range == 'week':
-                    self.end_date = self.start_date - datetime.timedelta(weeks=1)
+                    self.start_date = self.end_date - datetime.timedelta(weeks=1)
                 elif date_range == 'day':
-                    self.end_date = self.start_date - datetime.timedelta(days=1)
+                    self.start_date = self.end_date - datetime.timedelta(days=1)
+        
+        # Set the aggregates
+        self.aggregates = {
+            'num_records': Count('id'),
+            'average_priority': Avg('priority__level'),
+            'average_difficulty': Avg('difficulty__value'),
+        }
         
         # Set the dange range in the filter
-        self.filter = {}
         if not self.start_date:
-            self.start_date = today
+            self.start_date = last_year
         if not self.end_date:
-            self.end_date = last_year
-        self.filter['{0}__range'.format(self.date_field)] = (self.end_date, self.start_date)
+            self.end_date = today
         
+        self.where.append('{0}.{1} BETWEEN \'{2}\' AND \'{3}\''.format(self.model._meta.db_table, self.date_field, self.start_date, self.end_date))
+         
+#        self.filter['{0}__range'.format(self.date_field)] = (self.start_date, self.end_date)
+        
+        # Set the extra select data
+        self.extra = {
+            'select': self.select,
+            'where': self.where,
+        }
+        
+    def set_group_by(self, group_by):
+        if group_by in all_group_names:
+            self.group_by = group_by
+        
+        # Set group names
+        if self.group_by == 'week':
+            self.group_names = week_group_names
+        else:
+            self.group_names = default_group_names
+        
+        # Build grouping data
+        self.select = {}
+        self.values = []
+        self.order_by = []
+        for group_name in self.group_names:
+            self.select[group_name] = 'CAST(extract({0} from {1}) as INT)'.format(group_name, self.date_field)
+            self.values.append(group_name)
+            self.order_by.append('-{0}'.format(group_name))
+            if group_name == self.group_by:
+                break
     
     def get_query_set(self):
         self.query_set = self.model.objects.extra(
@@ -181,8 +193,43 @@ class Stats(object):
     
     def get_rows(self):
         self.rows = [record for record in self.get_records()]
+#        self.populate_missing_rows()
         self.format_rows()
         return self.rows
+    
+    def populate_missing_rows(self):
+        # Iterate through the items based on the grouping
+        # to fill in any missing records
+        
+        current_date = self.end_date
+        grouping = {}
+        grouping['{0}s'.format(self.group_by)] = 1
+        new_rows = []
+        
+        # right now sort is always descending so iterate backwards
+        num_expected = (self.end_date - self.start_date).days
+        expected_index = 0
+        existing_index = 0
+        empty_row = {}
+        for key in self.aggregates.keys():
+            empty_row[key] = 0
+        
+        while expected_index < num_expected:
+            # Check if the first row exists
+            if self.rows[existing_index]['year'] == current_date.year and self.rows[existing_index]['month'] == current_date.month and self.rows[existing_index]['day'] == current_date.day:
+                new_rows.append(self.rows[existing_index])
+                existing_index += 1
+            else:
+                filler_row = empty_row.copy()
+                filler_row.update({
+                    'year':current_date.year,
+                    'month':current_date.month,
+                    'day':current_date.day,
+                })
+                new_rows.append(filler_row)
+            current_date -= relativedelta(**grouping)
+            expected_index += 1
+        self.rows = new_rows
     
     def format_rows(self):
         for row in self.rows:
