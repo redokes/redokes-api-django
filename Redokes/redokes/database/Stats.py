@@ -51,19 +51,22 @@ class Stats(object):
 #        self.model = None
         
         self.date_field = None
-        self.group_by = 'month'
+        self.group_by = 'day'
         self.start_date = last_year
         self.end_date = today
-        self.date_range = None
+        self.date_range = 'month'
         
         self.group_names = []
         self.extra = {}
         self.select = {}
         self.where = []
         self.values = []
+        self.month_values = []
         self.order_by = []
         self.aggregates = []
-        self.filter = {}
+        self.filters = []
+        
+        self.legend_map = {}
         
 #        self.num_records = 0
 #        self.total_records = 0
@@ -95,7 +98,13 @@ class Stats(object):
         # Check group by
         if 'group_by' in self.params:
             self.set_group_by(self.params['group_by'])
-            del self.params['group_by']
+        elif 'date_range' in self.params:
+            last_group_name = None
+            for group_name in all_group_names:
+                if last_group_name == self.params['date_range']:
+                    self.set_group_by(group_name)
+                    break
+                last_group_name = group_name
         
         # Check start date
         if 'start_date' in self.params:
@@ -119,6 +128,7 @@ class Stats(object):
         if 'date_range' in self.params:
             date_range = self.params['date_range']
             if date_range in all_group_names:
+                self.date_range = date_range
                 if date_range == 'year':
                     self.start_date = self.end_date - relativedelta(years=1)
                 elif date_range == 'month':
@@ -128,11 +138,12 @@ class Stats(object):
                 elif date_range == 'day':
                     self.start_date = self.end_date - datetime.timedelta(days=1)
         
+        print self.date_range
+        print self.group_by
+        
         # Set the aggregates
         self.aggregates = {
             'num_records': Count('id'),
-            'average_priority': Avg('priority__level'),
-            'average_difficulty': Avg('difficulty__value'),
         }
         
         # Set the dange range in the filter
@@ -164,23 +175,25 @@ class Stats(object):
         # Build grouping data
         self.select = {}
         self.values = []
+        self.month_values = []
         self.order_by = []
         for group_name in self.group_names:
             self.select[group_name] = 'CAST(extract({0} from {1}) as INT)'.format(group_name, self.date_field)
-            self.values.append(group_name)
-            self.order_by.append('-{0}'.format(group_name))
+            self.month_values.append(group_name)
+            self.order_by.append('{0}'.format(group_name))
             if group_name == self.group_by:
                 break
+         
     
     def get_query_set(self):
         self.query_set = self.model.objects.extra(
             **self.extra
         ).values(
-            *self.values
+            *(self.month_values + self.values)
         ).annotate(
             **self.aggregates
         ).filter(
-            **self.filter
+            *self.filters
         ).order_by(
             *self.order_by
         )
@@ -195,6 +208,7 @@ class Stats(object):
         self.rows = [record for record in self.get_records()]
 #        self.populate_missing_rows()
         self.format_rows()
+        self.combine_rows();
         return self.rows
     
     def populate_missing_rows(self):
@@ -243,3 +257,79 @@ class Stats(object):
         """
         return row
     
+    def combine_rows(self):
+        
+        # create empty rows
+        new_rows = []
+        required_fields = []
+        
+        for key in self.aggregates.keys():
+            required_fields.append(key)
+        for value in self.month_values:
+            required_fields.append(value)
+        
+        current_date = self.start_date
+        grouping = {}
+        grouping['{0}s'.format(self.group_by)] = 1
+        while current_date <= self.end_date:
+            current_date += relativedelta(**grouping)
+            row = {}
+            for key in self.month_values:
+                row[key] = getattr(current_date, key)
+            for key in self.aggregates.keys():
+                row[key] = 0
+            new_rows.append(row)
+        
+        for new_row in new_rows:
+            for row in self.rows:
+                found_record = True
+                for month_value in self.month_values:
+                    if row[month_value] != new_row[month_value]:
+                        found_record = False
+                if found_record:
+                    for aggregate_name in self.aggregates.keys():
+                        new_row['user__{0}'.format(row['reporter__id'])] = row[aggregate_name]
+                    
+        
+        # fill in empty rows
+        for new_row in new_rows:
+            for legend_key in self.legend_map:
+                if legend_key not in new_row:
+                    new_row[legend_key] = 0
+        
+        self.rows = new_rows
+        
+        return
+        
+        
+        grouping = {}
+        grouping['{0}s'.format(self.group_by)] = 1
+        num_expected = (self.end_date - self.start_date).days
+        expected_index = 0
+        existing_index = 0
+        empty_row = {}
+        
+        while expected_index < num_expected:
+            # Check if the first row exists
+            if self.rows[existing_index]['year'] == current_date.year and self.rows[existing_index]['month'] == current_date.month and self.rows[existing_index]['day'] == current_date.day:
+                new_rows.append(self.rows[existing_index])
+                existing_index += 1
+            else:
+                filler_row = empty_row.copy()
+                filler_row.update({
+                    'year':current_date.year,
+                    'month':current_date.month,
+                    'day':current_date.day,
+                })
+                new_rows.append(filler_row)
+            current_date -= relativedelta(**grouping)
+            expected_index += 1
+        self.rows = new_rows
+        
+        fields_to_keep = ['year', 'month']
+        real_rows = []
+        for row in self.rows:
+            for field in fields_to_keep:
+                real_rows[field]
+            
+                
