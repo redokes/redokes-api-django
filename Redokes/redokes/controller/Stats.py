@@ -43,3 +43,5 @@ class Stats(Api):
         self.set_response_param('total_records', len(rows))
         self.set_response_param('records', rows)
         self.set_response_param('legend_map', self.stats_instance.legend_map)
+        self.set_response_param('x_label', self.stats_instance.x_label)
+        self.set_response_param('y_label', self.stats_instance.y_label)

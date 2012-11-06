@@ -6,7 +6,7 @@ from dateutil.relativedelta import *
 from django.db.models import Count, Avg, Max
 
 now = datetime.datetime.now()
-today = datetime.date.today()
+today = datetime.datetime.today()
 tomorrow = today + datetime.timedelta(days=1)
 next_week = today + datetime.timedelta(weeks=1)
 last_week = today - datetime.timedelta(weeks=1)
@@ -41,6 +41,22 @@ week_group_names = (
     'week',
 )
 
+date_display_formats = {
+    'year': '%Y',
+    'month': '%B %Y',
+    'day': '%m-%d-%Y',
+    'hour': '%i:%m %p',
+    'minute': '%i:%m:%S %p',
+}
+
+x_labels = {
+    'year': 'Years',
+    'month': 'Months',
+    'day': 'Days',
+    'hour': 'Hours',
+    'minute': 'Minutes',
+}
+
 class Stats(object):
     util = redokes.util
     
@@ -74,6 +90,9 @@ class Stats(object):
         self.legend_map = {}
         self.legend_map_prefix = ''
         self.legend_map_field = None
+        
+        self.x_label = 'x Axis'
+        self.y_label = 'y Axis'
         
 #        self.num_records = 0
 #        self.total_records = 0
@@ -185,6 +204,8 @@ class Stats(object):
             self.order_by.append('{0}'.format(group_name))
             if group_name == self.group_by:
                 break
+        
+        self.x_label = x_labels[self.group_by]
          
     
     def get_query_set(self):
@@ -281,6 +302,10 @@ class Stats(object):
                 row[key] = getattr(current_date, key)
             for key in self.aggregates.keys():
                 row[key] = 0
+            
+            # Add date display
+            row['date_display'] = current_date.strftime(date_display_formats[self.group_by])
+            
             new_rows.append(row)
         
         for new_row in new_rows:
