@@ -61,9 +61,14 @@ class Stats(object):
         self.select = {}
         self.where = []
         self.values = []
-        self.month_values = []
+        self.date_values = []
         self.order_by = []
-        self.aggregates = []
+        
+        self.aggregates = {}
+        self.aggregate_function = Count
+        self.aggregate_field = 'id'
+        self.aggregate_name = 'id__count'
+        
         self.filters = []
         
         self.legend_map = {}
@@ -140,9 +145,8 @@ class Stats(object):
             del self.params['end_date']
         
         # Set the aggregates
-        self.aggregates = {
-            'num_records': Count('id'),
-        }
+        self.aggregates = {}
+        self.aggregates[self.aggregate_name] = self.aggregate_function(self.aggregate_field)
         
         # Set the dange range in the filter
         if not self.start_date:
@@ -172,12 +176,12 @@ class Stats(object):
         
         # Build grouping data
         self.select = {}
-        self.values = []
-        self.month_values = []
+#        self.values = []
+        self.date_values = []
         self.order_by = []
         for group_name in self.group_names:
             self.select[group_name] = 'CAST(extract({0} from {1}) as INT)'.format(group_name, self.date_field)
-            self.month_values.append(group_name)
+            self.date_values.append(group_name)
             self.order_by.append('{0}'.format(group_name))
             if group_name == self.group_by:
                 break
@@ -187,7 +191,7 @@ class Stats(object):
         self.query_set = self.model.objects.extra(
             **self.extra
         ).values(
-            *(self.month_values + self.values)
+            *(self.date_values + self.values)
         ).annotate(
             **self.aggregates
         ).filter(
@@ -263,7 +267,7 @@ class Stats(object):
         
         for key in self.aggregates.keys():
             required_fields.append(key)
-        for value in self.month_values:
+        for value in self.date_values:
             required_fields.append(value)
         
         current_date = self.start_date
@@ -273,7 +277,7 @@ class Stats(object):
         while current_date <= self.end_date:
             current_date += relativedelta(**grouping)
             row = {}
-            for key in self.month_values:
+            for key in self.date_values:
                 row[key] = getattr(current_date, key)
             for key in self.aggregates.keys():
                 row[key] = 0
@@ -282,12 +286,12 @@ class Stats(object):
         for new_row in new_rows:
             for row in self.rows:
                 found_record = True
-                for month_value in self.month_values:
-                    if row[month_value] != new_row[month_value]:
+                for date_value in self.date_values:
+                    if row[date_value] != new_row[date_value]:
                         found_record = False
                 if found_record:
                     for aggregate_name in self.aggregates.keys():
-                        new_row['{0}__{1}'.format(self.legend_map_prefix, self.legend_map_field)] = row[aggregate_name]
+                        new_row['{0}__{1}'.format(self.legend_map_prefix, row[self.legend_map_field])] = row[aggregate_name]
                     
         
         # fill in empty rows
