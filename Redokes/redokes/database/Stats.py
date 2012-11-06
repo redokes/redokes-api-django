@@ -51,7 +51,7 @@ class Stats(object):
 #        self.model = None
         
         self.date_field = None
-        self.group_by = 'day'
+        self.group_by = None
         self.start_date = last_year
         self.end_date = today
         self.date_range = 'month'
@@ -67,6 +67,8 @@ class Stats(object):
         self.filters = []
         
         self.legend_map = {}
+        self.legend_map_prefix = ''
+        self.legend_map_field = None
         
 #        self.num_records = 0
 #        self.total_records = 0
@@ -77,34 +79,47 @@ class Stats(object):
         
         
     
-    def __init__(self, model=None, date_field=None, params={}, *args, **kwargs):
+    def __init__(self, params={}, *args, **kwargs):
         self.init_defaults()
-        
-        # Set the model
-        self.model = model
-        
-        # Set the date field
-        self.date_field = date_field
-        
-        # Set the params
-        self.params = params.copy()
-        
-        # Set the group by and build grouping data
-        self.set_group_by(self.group_by)
         
         #Apply the kwargs
         redokes.util.apply_config(self, kwargs)
         
+        # Set the params
+        self.params = params.copy()
+        
+        # The most common param will be date_range
+        # default is month
+        if 'date_range' in self.params:
+            if self.params['date_range'] in all_group_names:
+                self.date_range = self.params['date_range']
+            del self.params['date_range']
+        
+        if self.date_range == 'year':
+            self.start_date = self.end_date - relativedelta(years=1)
+        elif self.date_range == 'month':
+            self.start_date = self.end_date - relativedelta(months=1)
+        elif self.date_range == 'week':
+            self.start_date = self.end_date - datetime.timedelta(weeks=1)
+        elif self.date_range == 'day':
+            self.start_date = self.end_date - datetime.timedelta(days=1)
+        
+        # Set the default group_by to the
+        # next date grouping after date_range
+        default_group_by = None
+        last_group_name = None
+        for group_name in all_group_names:
+            if last_group_name == self.date_range:
+                default_group_by = group_name
+                break
+            last_group_name = group_name
+        
         # Check group by
         if 'group_by' in self.params:
             self.set_group_by(self.params['group_by'])
-        elif 'date_range' in self.params:
-            last_group_name = None
-            for group_name in all_group_names:
-                if last_group_name == self.params['date_range']:
-                    self.set_group_by(group_name)
-                    break
-                last_group_name = group_name
+            del self.params['group_by']
+        else:
+            self.set_group_by(default_group_by)
         
         # Check start date
         if 'start_date' in self.params:
@@ -123,23 +138,6 @@ class Stats(object):
             except Exception, e:
                 pass
             del self.params['end_date']
-        
-        # Check date range
-        if 'date_range' in self.params:
-            date_range = self.params['date_range']
-            if date_range in all_group_names:
-                self.date_range = date_range
-                if date_range == 'year':
-                    self.start_date = self.end_date - relativedelta(years=1)
-                elif date_range == 'month':
-                    self.start_date = self.end_date - relativedelta(months=1)
-                elif date_range == 'week':
-                    self.start_date = self.end_date - datetime.timedelta(weeks=1)
-                elif date_range == 'day':
-                    self.start_date = self.end_date - datetime.timedelta(days=1)
-        
-        print self.date_range
-        print self.group_by
         
         # Set the aggregates
         self.aggregates = {
@@ -271,6 +269,7 @@ class Stats(object):
         current_date = self.start_date
         grouping = {}
         grouping['{0}s'.format(self.group_by)] = 1
+        
         while current_date <= self.end_date:
             current_date += relativedelta(**grouping)
             row = {}
@@ -288,7 +287,7 @@ class Stats(object):
                         found_record = False
                 if found_record:
                     for aggregate_name in self.aggregates.keys():
-                        new_row['user__{0}'.format(row['reporter__id'])] = row[aggregate_name]
+                        new_row['{0}__{1}'.format(self.legend_map_prefix, self.legend_map_field)] = row[aggregate_name]
                     
         
         # fill in empty rows
