@@ -74,6 +74,14 @@ class Lookup(object):
                 except:
                     self.sort = []
             del self.params['sort']
+            
+        if "sort_property" in self.params:
+            if "sort_direction" in self.params:
+                self.add_sorter(self.params['sort_property'], self.params['sort_direction'])
+                del self.params['sort_direction']
+            else:
+                self.add_sorter(self.params['sort_property'], self.params['asc'])
+            del self.params['sort_property']
         
         #Get the filters
         if "filter" in self.params:
@@ -144,6 +152,8 @@ class Lookup(object):
         limit = limit or self.limit
         stop = start + limit
         
+        # TODO: this should only be run once - maybe put it in the get_rows
+        # or modify the get_total_records method to cache the result
         self.total_records = self.get_query_set().count()
         
         # check if a certain page needs to be returned
@@ -170,6 +180,12 @@ class Lookup(object):
         self.format_rows()
         return self.rows
     
+    def get_row(self):
+        limit = self.start + 1
+        rows = self.get_rows()
+        row = rows[0]
+        return row
+    
     def format_rows(self):
         for row in self.rows:
             # add mapped lookup data
@@ -182,19 +198,6 @@ class Lookup(object):
             
             # format the row
             row = self.format_row(row)
-    
-    def get_row(self):
-        limit = self.start + 1
-        self.get_query_set(self.fields)
-        rows = list(self.get_records(self.start, limit))
-        
-        #Run the rows through the formatter
-        formatted_rows = []
-        for row in rows:
-            formatted_rows.append(self.format_row(row))
-            
-        #Return the formatted rows
-        return formatted_rows[0]
     
     def format_row(self, row):
         """
