@@ -8,3 +8,5 @@ local_settings.py
 .pydevproject
 
 project/.DS_Store
+nbproject
+nbproject/*
