@@ -122,17 +122,29 @@ class Crud(Api):
     
     def read_action(self):
         if self.lookup_instance:
+            
+            meta = {}
+            
             # run the lookup query to get the rows
             rows = list(self.lookup_instance.get_rows())
             query = self.lookup_instance.get_query_set().query
+            
             # add records to the response
-            self.set_response_param('num_records', self.lookup_instance.get_num_records())
-            self.set_response_param('total_records', self.lookup_instance.get_total_records())
-            self.set_response_param('current_page', self.lookup_instance.get_current_page())
-            self.set_response_param('total_pages', self.lookup_instance.get_num_pages())
-            self.set_response_param('records', rows)
+            meta['num_records'] = self.lookup_instance.get_num_records()
+            meta['total_records'] = self.lookup_instance.get_total_records()
+            meta['current_page'] = self.lookup_instance.get_current_page()
+            meta['total_pages'] = self.lookup_instance.get_num_pages()
+            meta['next'] = None
+            meta['previous'] = None
+            
             if settings.DEBUG:
-                self.set_response_param('query', str(query))
+                debug = {}
+                debug['query'] = str(query)
+                self.set_response_param('debug', debug)
+            
+            self.set_response_param('meta', meta)
+            self.set_response_param('records', rows)
+            
                 
             
     def delete_action(self):

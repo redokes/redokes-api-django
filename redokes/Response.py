@@ -37,13 +37,16 @@ class Manager(object):
             raise TypeError, 'Object of type %s with value of %s is not JSON serializable' % (type(obj), repr(obj))
     
     def get_response_string(self):
+        
+        status = {}
+        
         # prepare response data
         if len(self.errors):
-            self.values['success'] = False
+            status['success'] = False
         else:
-            self.values['success'] = True
-        self.values['messages'] = self.get_as_dict(self.messages)
-        self.values['errors'] = self.get_as_dict(self.errors)
+            status['success'] = True
+        status['messages'] = self.get_as_dict(self.messages)
+        status['errors'] = self.get_as_dict(self.errors)
         
         #build error string as list
         error_string = '<div class="form-messages form-errors"><ul>'
@@ -51,7 +54,9 @@ class Manager(object):
         for error in errors:
             error_string += '<li><strong>{0}</strong> - {1}</li>'.format(error['id'], error['msg'])
         error_string += '</ul></div>'
-        self.values['error_string'] = error_string
+        status['error_string'] = error_string
+        
+        self.values['status'] = status
         
         """
         // build message string as list

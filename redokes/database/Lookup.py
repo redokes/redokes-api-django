@@ -29,6 +29,10 @@ class Lookup(object):
         self.rows = []
         self.records = None
         
+        self.default_queryset = None
+        self.resource_name = None
+        self.allowed_filters = {}
+        
         self.mapped_lookups = {}
         
         self.front_controller = None
@@ -97,7 +101,12 @@ class Lookup(object):
             self.add_filter(key, value)
     
     def get_query_set(self, fields=None):
-        self.query_set = self.model.objects.order_by(
+        if self.default_queryset:
+            self.query_set = self.default_queryset
+        elif self.model:
+            self.query_set = self.model.objects.all()
+        
+        self.query_set = self.query_set.order_by(
             *self.get_order()
         ).filter(
             *self.process_filters()
