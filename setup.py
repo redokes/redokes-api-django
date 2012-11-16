@@ -19,6 +19,7 @@ setup(
         "ipython",
         "beautifulsoup4",
         "jsonpickle",
+        "dateutil",
     ]
 )
 
