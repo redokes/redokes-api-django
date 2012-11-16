@@ -1,6 +1,7 @@
 from django.http import HttpResponse, HttpRequest
 from django.http import Http404
 import json
+from decimal import Decimal
 
 class Manager(object):
     def __init__(self):
@@ -30,6 +31,8 @@ class Manager(object):
     def json_handler(self, obj):
         if hasattr(obj, 'isoformat'):
             return obj.isoformat()
+        elif isinstance(obj, Decimal):
+            return '%f' % obj
         else:
             raise TypeError, 'Object of type %s with value of %s is not JSON serializable' % (type(obj), repr(obj))
     

@@ -5,6 +5,7 @@ from django.conf import settings
 class Crud(Api):
     
     def init_defaults(self):
+        Api.init_defaults(self)
         self.model_class = False
         self.lookup_class = False
         self.form_class = False
@@ -58,7 +59,6 @@ class Crud(Api):
                     }
                 })
             
-        
         #call the parent
         return Api.init(self)
     
@@ -123,11 +123,11 @@ class Crud(Api):
     def read_action(self):
         if self.lookup_instance:
             # run the lookup query to get the rows
-            rows = self.lookup_instance.get_rows()
-            query = self.lookup_instance.get_records().query
+            rows = list(self.lookup_instance.get_rows())
+            query = self.lookup_instance.get_query_set().query
             # add records to the response
-            self.set_response_param('num_records', len(rows))
-            self.set_response_param('total_records', self.lookup_instance.get_count())
+            self.set_response_param('num_records', self.lookup_instance.get_num_records())
+            self.set_response_param('total_records', self.lookup_instance.get_total_records())
             self.set_response_param('current_page', self.lookup_instance.get_current_page())
             self.set_response_param('total_pages', self.lookup_instance.get_num_pages())
             self.set_response_param('records', rows)

@@ -21,6 +21,7 @@ class Action(object):
         self.params = {}
         self.do_render = True
         self.front_controller = None
+        self._front_controller = None
         self.auto_template = True
         self.output_type = 'html'
         self.access = None
@@ -37,10 +38,8 @@ class Action(object):
         
         #Apply the kwargs
         self.util.apply_config(self, kwargs)
-        
         #Set the front controller to be in the template
         self.set_param('_front_controller', self.front_controller)
-        
         #Initialize the logger
 #        self.logger = logging.getLogger("nooga")
         
