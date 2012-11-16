@@ -112,16 +112,39 @@ class Action(object):
                 return user.has_perms(permissions)
     
     def get_template_name(self):
-        return '%s/%s/%s.html' % (self.parser.module, self.parser.controller, self.parser.action)
+        return '%s/%s/%s.html' % (self.parser.module.replace('.', '/'), self.parser.controller, self.parser.action)
+    
+    def get_template_names(self):
+        names = []
+        parts = self.parser.module.split('.') + [self.parser.controller, '{0}.html'.format(self.parser.action)]
+        for i in range(len(parts)):
+            names.append('/'.join(parts[i:]))
+        return names
     
     def auto_set_template(self):
-        self.set_template(self.get_template_name())
+#        self.set_template(self.get_template_name())
+        self.set_templates(self.get_template_names())
+    
+    def set_template(self, template_name):
+        if self.template_exists(template_name):
+            self.template = template_name
+            return self.template
+        
+        return None
+    
+    def set_templates(self, template_names):
+        for template_name in template_names:
+            if self.template_exists(template_name):
+                self.template = template_name
+                return self.template
+        
+        return None
     
     def template_exists(self, template_name):
         try:
             template.loader.get_template(template_name)
             return True
-        except template.TemplateDoesNotExist:
+        except template.TemplateDoesNotExist, e:
             return False
         return False
     
@@ -169,10 +192,6 @@ class Action(object):
     
     def render_template(self, template, context):
         return render_to_response(template, context, context_instance=RequestContext(self.request))
-    
-    def set_template(self, template_name):
-        if self.template_exists(template_name):
-            self.template = template_name
     
     def set_response_param(self, key, value=None):
         self.front_controller.response_manager.set_param(key, value)

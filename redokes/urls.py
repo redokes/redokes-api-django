@@ -14,10 +14,7 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     # url(r'^admin/', include(admin.site.urls)),
-)
-
-#This should always be last
-urlpatterns.append(
-    
+    (r'^favicon\.ico$', 'django.views.generic.simple.redirect_to', {'url': '/static/index/img/favicon.ico'}),
     url(r'^(.*?)$', 'redokes.views.route')
 )
+
