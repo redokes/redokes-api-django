@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name = "Redokes",
-    version = "0.1.2",
+    version = "0.1.3",
     packages = [
         "redokes",
         "redokes.controller",
