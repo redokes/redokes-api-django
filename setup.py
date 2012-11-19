@@ -6,7 +6,8 @@ setup(
     packages = find_packages(),
     url = "https://github.com/redokes/redokes-api-django",
     description = "Redokes Framework.",
-    include_package_data = True,
+    include_package_data=True,
+    zip_safe=False,
     install_requires = [
         "django>=1.4",
         "python-memcached",
