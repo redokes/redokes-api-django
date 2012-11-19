@@ -15,6 +15,7 @@ setup(
         "beautifulsoup4",
         "jsonpickle",
         "python-dateutil",
-    ]
+    ],
+    zip_safe = False
 )
 
