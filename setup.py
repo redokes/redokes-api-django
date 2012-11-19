@@ -10,7 +10,7 @@ setup(
         "redokes.request",
         "redokes.templatetags"
     ],
-    url = "https://github.com/redokes/redokes-api-django",
+    url = "https://github.com/redokes/redokes-api-django@0.0.1",
     description = "Redokes Framework.",
     install_requires = [
         "django>=1.4",
