@@ -1,0 +1,2 @@
+include README.md
+recursive-include redokes/index/templates *
