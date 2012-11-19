@@ -16,12 +16,9 @@ class RedokesConfig(object):
     def __init__(self):
         self.init_defaults();
         RedokesConfig.config.update(getattr(settings, 'REDOKES_CONFIG', {}))
-        print 'run init'
     
     @staticmethod
     def getConfig():
-        print 'get instance'
         if RedokesConfig.config is None:
             RedokesConfig()
-            print RedokesConfig.config
         return RedokesConfig.config

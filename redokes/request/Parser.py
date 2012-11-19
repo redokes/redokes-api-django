@@ -12,15 +12,11 @@ class Parser():
         self.logger = None
         self.request = None
         
-        print 'init time'
         config = RedokesConfig.getConfig()
         
         self.module = config['default_module']
         self.controller = config['default_controller']
         self.action = config['default_action']
-        print self.module
-        print self.controller
-        print self.action
         
         self.controller_instance = None
         self.params = {}
