@@ -1,15 +1,9 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name = "Redokes",
     version = "0.1.3",
-    packages = [
-        "redokes",
-        "redokes.controller",
-        "redokes.database",
-        "redokes.request",
-        "redokes.templatetags"
-    ],
+    packages = find_packages(),
     url = "https://github.com/redokes/redokes-api-django",
     description = "Redokes Framework.",
     install_requires = [

@@ -2,6 +2,7 @@ import logging
 from django.http import HttpResponse, HttpRequest
 from django.http import Http404
 import json
+from redokes.config.redokes import RedokesConfig
 
 class Parser():
     
@@ -10,9 +11,17 @@ class Parser():
         #Properties
         self.logger = None
         self.request = None
-        self.module = 'index'
-        self.controller = 'index'
-        self.action = 'index'
+        
+        print 'init time'
+        config = RedokesConfig.getConfig()
+        
+        self.module = config['default_module']
+        self.controller = config['default_controller']
+        self.action = config['default_action']
+        print self.module
+        print self.controller
+        print self.action
+        
         self.controller_instance = None
         self.params = {}
         self.args = []
